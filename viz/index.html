@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Bit Crusher — Live Audio & Oscilloscope Demo</title>
+    <style>
+        :root {
+            --bg-base: #0c0f14;
+            --bg-panel: #161b22;
+            --bg-card: #1f242d;
+            --border: #30363d;
+            --accent-green: #39d353;
+            --accent-cyan: #58a6ff;
+            --accent-orange: #f0883e;
+            --accent-red: #f85149;
+            --accent-purple: #bc8cff;
+            --text-main: #f0f6fc;
+            --text-muted: #8b949e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: linear-gradient(180deg, #161b22 0%, #0d1117 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            background: rgba(88, 166, 255, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(88, 166, 255, 0.4);
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+
+        .header-title p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        @media (max-width: 960px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* --- SCOPE SECTION --- */
+        .scope-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .canvas-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .canvas-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .canvas-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .dot-green { background-color: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+        .dot-orange { background-color: var(--accent-orange); box-shadow: 0 0 8px var(--accent-orange); }
+
+        .scope-controls {
+            display: flex;
+            gap: 0.8rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        canvas {
+            width: 100%;
+            height: 180px;
+            background: #080a0e;
+            border: 1px solid #1e2430;
+            border-radius: 4px;
+            display: block;
+        }
+
+        /* --- SIDEBAR / CONTROLS --- */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+
+        .control-group {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .group-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .concept-tag {
+            font-size: 0.7rem;
+            background: rgba(188, 140, 255, 0.12);
+            color: var(--accent-purple);
+            border: 1px solid rgba(188, 140, 255, 0.3);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        /* Buttons & Source Selectors */
+        .source-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+        }
+
+        .btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.6rem;
+            font-size: 0.82rem;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: center;
+        }
+
+        .btn:hover {
+            border-color: var(--accent-cyan);
+            background: #28303d;
+        }
+
+        .btn.active {
+            background: rgba(88, 166, 255, 0.18);
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .play-btn {
+            background: #238636;
+            border-color: #2ea043;
+            color: #ffffff;
+            font-weight: 600;
+            padding: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .play-btn:hover {
+            background: #2ea043;
+        }
+
+        .play-btn.playing {
+            background: #da3633;
+            border-color: #f85149;
+        }
+
+        .file-dropzone {
+            border: 1.5px dashed var(--border);
+            border-radius: 6px;
+            padding: 0.75rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .file-dropzone:hover {
+            border-color: var(--accent-cyan);
+            color: var(--text-main);
+        }
+
+        /* Sliders */
+        .slider-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.82rem;
+        }
+
+        .slider-name {
+            font-weight: 500;
+        }
+
+        .slider-val {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            color: var(--accent-cyan);
+            font-weight: bold;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #2d333b;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            box-shadow: 0 0 6px rgba(88, 166, 255, 0.6);
+        }
+
+        .stat-details {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-family: ui-monospace, monospace;
+        }
+
+        .gain-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.4rem;
+        }
+
+        .bypass-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            padding: 0.4rem 0;
+        }
+
+        /* Hardware Pipeline Flow Diagram */
+        .pipeline-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .pipeline-steps {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            overflow-x: auto;
+            font-size: 0.72rem;
+            padding: 0.4rem 0;
+        }
+
+        .pipe-node {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 0.4rem 0.5rem;
+            border-radius: 4px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .pipe-node.active {
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+            background: rgba(240, 136, 62, 0.1);
+        }
+
+        .pipe-arrow {
+            color: var(--text-muted);
+        }
+
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 1rem 2rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            background: var(--bg-panel);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">
+            <h1>🎛️ Digital Bit Crusher <span class="badge">RTL Live Hardware Emulator</span></h1>
+            <p>Digital Systems & Computer Organization — Semester 3 Mini Project</p>
+        </div>
+        <div>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">16-bit Signed Audio Datapath</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- LEFT: ANIMATED OSCILLOSCOPE TRACES -->
+        <section class="scope-container">
+            <!-- Channel 1: Input Waveform -->
+            <div class="canvas-card">
+                <div class="canvas-header">
+                    <div class="canvas-title">
+                        <span class="dot dot-green"></span> Channel 1: Original Audio Waveform
+                    </div>
+                    <div class="scope-controls">
+                        <span>Input: <strong id="curSourceLabel" style="color:var(--text-main);">Sine Tone (440 Hz)</strong></span>
+                        <span>• Resolution: 16-bit Full Dynamic Range</span>
+                    </div>
+                </div>
+                <canvas id="canvasInput" width="800" height="180"></canvas>
+            </div>
+
+            <!-- Channel 2: Crushed Output Waveform -->
+            <div class="canvas-card">
+                <div class="canvas-header">
+                    <div class="canvas-title">
+                        <span class="dot dot-orange"></span> Channel 2: Crushed Hardware Output
+                    </div>
+                    <div class="scope-controls">
+                        <span>Active Stages: <span id="activeStagesText" style="color:var(--accent-orange);">None (Bypass)</span></span>
+                    </div>
+                </div>
+                <canvas id="canvasOutput" width="800" height="180"></canvas>
+            </div>
+
+            <!-- Hardware Pipeline Flow -->
+            <div class="pipeline-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.82rem; font-weight:600;">Verilog Datapath Flow:</span>
+                    <span style="font-size:0.75rem; color:var(--text-muted);">Matches rtl/bitcrusher_top.v</span>
+                </div>
+                <div class="pipeline-steps">
+                    <div class="pipe-node">Stage 0/1<br><strong>audio_source</strong></div>
+                    <span class="pipe-arrow">➜</span>
+                    <div class="pipe-node" id="nodeDepth">Stage 2<br><strong>bit_depth_reducer</strong></div>
+                    <span class="pipe-arrow">➜</span>
+                    <div class="pipe-node" id="nodeRate">Stage 3<br><strong>sample_rate_reducer</strong></div>
+                    <span class="pipe-arrow">➜</span>
+                    <div class="pipe-node" id="nodeGain">Stage 4/5<br><strong>gain_clipper</strong></div>
+                    <span class="pipe-arrow">➜</span>
+                    <div class="pipe-node">Output<br><strong>crushed_out</strong></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT: LIVE HARDWARE CONTROLS -->
+        <aside class="sidebar">
+            <!-- Sound Source Selector -->
+            <div class="control-group">
+                <div class="group-title">
+                    <span>1. Sound Generator</span>
+                    <span class="concept-tag">ROM / Signal Source</span>
+                </div>
+                
+                <div class="source-grid">
+                    <button class="btn active" id="btnSine">Sine 440Hz</button>
+                    <button class="btn" id="btnSynth">80s Synth</button>
+                    <button class="btn" id="btnDrums">Drum Beat</button>
+                </div>
+
+                <div class="file-dropzone" id="dropzone">
+                    <span>📁 Drop any .wav file here, or click to browse</span>
+                    <input type="file" id="fileInput" accept="audio/*" style="display:none;">
+                </div>
+
+                <button class="btn play-btn" id="playBtn">▶ Start Audio & Oscilloscope</button>
+            </div>
+
+            <!-- Bit Depth Crusher (Decoder + AND Mask) -->
+            <div class="control-group">
+                <div class="group-title">
+                    <span>2. Bit Depth Quantizer</span>
+                    <span class="concept-tag">Decoder + AND Gates</span>
+                </div>
+
+                <div class="slider-row">
+                    <div class="slider-labels">
+                        <span class="slider-name">Crush Depth (LSBs Zeroed):</span>
+                        <span class="slider-val" id="valDepth">0 bits</span>
+                    </div>
+                    <input type="range" id="sliderDepth" min="0" max="15" value="0" step="1">
+                    <div class="stat-details" id="maskDetails">
+                        Mask: 1111111111111111 (0xFFFF) | Effective: 16-bit
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Rate Reducer (Counter + Register) -->
+            <div class="control-group">
+                <div class="group-title">
+                    <span>3. Sample Rate Reducer</span>
+                    <span class="concept-tag">Modulo-N + D-FF Register</span>
+                </div>
+
+                <div class="slider-row">
+                    <div class="slider-labels">
+                        <span class="slider-name">Downsample Factor:</span>
+                        <span class="slider-val" id="valDownsample">1x (44.1 kHz)</span>
+                    </div>
+                    <input type="range" id="sliderDownsample" min="1" max="24" value="1" step="1">
+                    <div class="stat-details" id="rateDetails">
+                        Hold: 1 cycle | Sample & Hold Strobe Active every cycle
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gain & Saturation Clipper -->
+            <div class="control-group">
+                <div class="group-title">
+                    <span>4. Gain & Output Clipper</span>
+                    <span class="concept-tag">Shifter + Comparators</span>
+                </div>
+
+                <div class="slider-row">
+                    <span style="font-size:0.82rem; margin-bottom:0.2rem;">Pre-Clip Gain (Barrel Shift):</span>
+                    <div class="gain-buttons">
+                        <button class="btn active" data-gain="0">1x (0dB)</button>
+                        <button class="btn" data-gain="1">2x (+6dB)</button>
+                        <button class="btn" data-gain="2">4x (+12dB)</button>
+                        <button class="btn" data-gain="3">8x (+18dB)</button>
+                    </div>
+                    <div class="stat-details" id="gainDetails">
+                        Clipper Status: Safe [-32768, +32767]
+                    </div>
+                </div>
+
+                <div class="bypass-toggle">
+                    <span>Bypass Bit Crusher:</span>
+                    <input type="checkbox" id="checkBypass">
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <footer>
+        Digital Bit Crusher • Implemented with Icarus Verilog HDL & GTKWave/WaveTrace • Real-time Web Audio API Model
+    </footer>
+
+    <!-- REAL-TIME AUDIO ENGINE & OSCILLOSCOPE ANIMATION SCRIPT -->
+    <script>
+        // --- Web Audio Context & Hardware Emulation State ---
+        let audioCtx = null;
+        let isPlaying = false;
+        let currentSourceType = 'sine'; // 'sine', 'synth', 'drums', 'file'
+        let uploadedAudioBuffer = null;
+        let activeSourceNode = null;
+        let scriptProcessor = null;
+
+        // Hardware Parameters (mirrors Verilog registers)
+        let bitDepthSel = 0;     // 0 to 15
+        let holdCount = 1;        // 1 to 24
+        let driveShift = 0;       // 0, 1, 2, 3 (1x, 2x, 4x, 8x)
+        let isBypassed = false;
+
+        // Oscilloscope Buffers for live animation
+        const SCOPE_SIZE = 512;
+        let rawScopeBuffer = new Float32Array(SCOPE_SIZE);
+        let crushedScopeBuffer = new Float32Array(SCOPE_SIZE);
+        let bufferWriteHead = 0;
+
+        // Internal Sample & Hold register for rate reducer
+        let heldSample = 0;
+        let holdCounter = 0;
+
+        // --- DOM Elements ---
+        const canvasInput = document.getElementById('canvasInput');
+        const canvasOutput = document.getElementById('canvasOutput');
+        const ctxInput = canvasInput.getContext('2d');
+        const ctxOutput = canvasOutput.getContext('2d');
+
+        const playBtn = document.getElementById('playBtn');
+        const btnSine = document.getElementById('btnSine');
+        const btnSynth = document.getElementById('btnSynth');
+        const btnDrums = document.getElementById('btnDrums');
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+
+        const sliderDepth = document.getElementById('sliderDepth');
+        const valDepth = document.getElementById('valDepth');
+        const maskDetails = document.getElementById('maskDetails');
+
+        const sliderDownsample = document.getElementById('sliderDownsample');
+        const valDownsample = document.getElementById('valDownsample');
+        const rateDetails = document.getElementById('rateDetails');
+
+        const gainButtons = document.querySelectorAll('.gain-buttons .btn');
+        const gainDetails = document.getElementById('gainDetails');
+        const checkBypass = document.getElementById('checkBypass');
+
+        const curSourceLabel = document.getElementById('curSourceLabel');
+        const activeStagesText = document.getElementById('activeStagesText');
+        const nodeDepth = document.getElementById('nodeDepth');
+        const nodeRate = document.getElementById('nodeRate');
+        const nodeGain = document.getElementById('nodeGain');
+
+        // --- Initialize Audio Context ---
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // --- Live Synthesizers ---
+        let synthPhase = 0;
+        let synthTimer = 0;
+        const synthNotes = [220.0, 261.63, 329.63, 440.0, 523.25, 440.0, 329.63, 261.63];
+
+        function getAudioSample(sampleRate) {
+            if (currentSourceType === 'sine') {
+                synthPhase += (2 * Math.PI * 440.0) / sampleRate;
+                if (synthPhase > 2 * Math.PI) synthPhase -= 2 * Math.PI;
+                return Math.sin(synthPhase) * 0.8;
+            } else if (currentSourceType === 'synth') {
+                synthTimer += 1 / sampleRate;
+                const noteIndex = Math.floor(synthTimer * 4) % synthNotes.length;
+                const freq = synthNotes[noteIndex];
+                synthPhase += (2 * Math.PI * freq) / sampleRate;
+                if (synthPhase > 2 * Math.PI) synthPhase -= 2 * Math.PI;
+
+                const noteTime = (synthTimer * 4) % 1.0;
+                const env = Math.exp(-noteTime * 2.5);
+                const raw = 0.6 * Math.sin(synthPhase) + 0.3 * Math.sin(synthPhase * 2) + 0.15 * Math.sin(synthPhase * 3);
+                return raw * env * 0.9;
+            } else if (currentSourceType === 'drums') {
+                synthTimer += 1 / sampleRate;
+                const beatTime = synthTimer % 0.5; // 120 BPM beat
+                if (beatTime < 0.15) {
+                    // Kick drum: pitch-dropping sine
+                    const kickFreq = 120 * Math.exp(-beatTime * 30);
+                    synthPhase += (2 * Math.PI * kickFreq) / sampleRate;
+                    return Math.sin(synthPhase) * Math.exp(-beatTime * 15);
+                } else if (beatTime > 0.25 && beatTime < 0.40) {
+                    // Snare drum: white noise burst
+                    return (Math.random() * 2 - 1) * Math.exp(-(beatTime - 0.25) * 20);
+                }
+                return 0;
+            }
+            return 0;
+        }
+
+        // --- Verilog DSP Emulation Engine ---
+        // Processes blocks of audio with bit-exact 16-bit integer logic
+        function setupDSPNode() {
+            const bufferSize = 2048;
+            scriptProcessor = audioCtx.createScriptProcessor(bufferSize, 1, 1);
+
+            scriptProcessor.onaudioprocess = function(audioProcessingEvent) {
+                const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
+                const outputData = audioProcessingEvent.outputBuffer.getChannelData(0);
+                const sampleRate = audioCtx.sampleRate;
+
+                // 16-bit signed limits
+                const MAX_16 = 32767;
+                const MIN_16 = -32768;
+
+                // Compute bitmask for bit-depth reducer: zero out lowest bitDepthSel bits
+                // In Verilog: mask[i] = (i < bit_depth_sel) ? 0 : 1
+                let mask = 0xFFFF;
+                if (bitDepthSel > 0) {
+                    mask = (0xFFFF << bitDepthSel) & 0xFFFF;
+                }
+
+                for (let i = 0; i < bufferSize; i++) {
+                    // 1. Obtain input sample from synthetic generator or uploaded audio file
+                    let sampleFloat = 0;
+                    if (currentSourceType === 'file') {
+                        sampleFloat = inputData[i];
+                    } else {
+                        sampleFloat = getAudioSample(sampleRate);
+                    }
+
+                    // Record to clean input oscilloscope buffer
+                    rawScopeBuffer[bufferWriteHead] = sampleFloat;
+
+                    if (isBypassed) {
+                        outputData[i] = sampleFloat;
+                        crushedScopeBuffer[bufferWriteHead] = sampleFloat;
+                        bufferWriteHead = (bufferWriteHead + 1) % SCOPE_SIZE;
+                        continue;
+                    }
+
+                    // 2. Convert to 16-bit signed integer [-32768, 32767]
+                    let sample16 = Math.floor(sampleFloat * 32767);
+                    if (sample16 > MAX_16) sample16 = MAX_16;
+                    if (sample16 < MIN_16) sample16 = MIN_16;
+
+                    // 3. STAGE 2: Bit-Depth Reduction (Decoder + AND Mask)
+                    // Convert to 16-bit unsigned for bitwise manipulation, then re-sign
+                    let unsigned16 = sample16 & 0xFFFF;
+                    let quantized16 = unsigned16 & mask;
+                    if (quantized16 & 0x8000) {
+                        quantized16 = quantized16 - 0x10000; // restore two's complement sign
+                    }
+
+                    // 4. STAGE 3: Sample-Rate Reducer (Modulo-N + Sample-and-Hold)
+                    holdCounter++;
+                    if (holdCounter >= holdCount) {
+                        heldSample = quantized16; // LOAD state
+                        holdCounter = 0;
+                    } // else HOLD state (keeps heldSample)
+
+                    // 5. STAGE 4: Gain Stage (Arithmetic Shift: <<< driveShift)
+                    let driven = heldSample * Math.pow(2, driveShift);
+
+                    // 6. STAGE 5: Output Clipper (Signed Comparators + Saturation)
+                    let clipped = driven;
+                    if (driven > MAX_16) {
+                        clipped = MAX_16;
+                    } else if (driven < MIN_16) {
+                        clipped = MIN_16;
+                    }
+
+                    // Convert back to floating point for speaker output
+                    const finalFloat = clipped / 32767;
+                    outputData[i] = finalFloat;
+
+                    // Record to crushed oscilloscope buffer
+                    crushedScopeBuffer[bufferWriteHead] = finalFloat;
+                    bufferWriteHead = (bufferWriteHead + 1) % SCOPE_SIZE;
+                }
+            };
+
+            scriptProcessor.connect(audioCtx.destination);
+        }
+
+        // --- Start / Stop Audio ---
+        function togglePlay() {
+            initAudio();
+            if (!isPlaying) {
+                isPlaying = true;
+                playBtn.classList.add('playing');
+                playBtn.textContent = '⏹ Stop Audio & Oscilloscope';
+
+                setupDSPNode();
+
+                if (currentSourceType === 'file' && uploadedAudioBuffer) {
+                    playUploadedFile();
+                }
+            } else {
+                isPlaying = false;
+                playBtn.classList.remove('playing');
+                playBtn.textContent = '▶ Start Audio & Oscilloscope';
+
+                if (activeSourceNode) {
+                    activeSourceNode.stop();
+                    activeSourceNode.disconnect();
+                    activeSourceNode = null;
+                }
+                if (scriptProcessor) {
+                    scriptProcessor.disconnect();
+                    scriptProcessor = null;
+                }
+            }
+        }
+
+        function playUploadedFile() {
+            if (!uploadedAudioBuffer) return;
+            if (activeSourceNode) {
+                activeSourceNode.stop();
+                activeSourceNode.disconnect();
+            }
+
+            activeSourceNode = audioCtx.createBufferSource();
+            activeSourceNode.buffer = uploadedAudioBuffer;
+            activeSourceNode.loop = true;
+            activeSourceNode.connect(scriptProcessor);
+            activeSourceNode.start();
+        }
+
+        playBtn.addEventListener('click', togglePlay);
+
+        // --- Source Selection Handlers ---
+        function setSource(type, label) {
+            currentSourceType = type;
+            curSourceLabel.textContent = label;
+            [btnSine, btnSynth, btnDrums].forEach(b => b.classList.remove('active'));
+
+            if (type === 'sine') btnSine.classList.add('active');
+            if (type === 'synth') btnSynth.classList.add('active');
+            if (type === 'drums') btnDrums.classList.add('active');
+
+            if (isPlaying && type === 'file') {
+                playUploadedFile();
+            } else if (isPlaying && activeSourceNode) {
+                activeSourceNode.stop();
+                activeSourceNode.disconnect();
+                activeSourceNode = null;
+            }
+        }
+
+        btnSine.addEventListener('click', () => setSource('sine', 'Sine Tone (440 Hz)'));
+        btnSynth.addEventListener('click', () => setSource('synth', '80s Synth Lead'));
+        btnDrums.addEventListener('click', () => setSource('drums', 'Drum Beat Rhythm'));
+
+        // --- File Upload / Drag-and-Drop ---
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.style.borderColor = 'var(--accent-cyan)';
+        });
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.style.borderColor = 'var(--border)';
+        });
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.style.borderColor = 'var(--border)';
+            if (e.dataTransfer.files.length > 0) {
+                handleAudioFile(e.dataTransfer.files[0]);
+            }
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleAudioFile(e.target.files[0]);
+            }
+        });
+
+        function handleAudioFile(file) {
+            initAudio();
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                audioCtx.decodeAudioData(ev.target.result, function(buffer) {
+                    uploadedAudioBuffer = buffer;
+                    dropzone.innerHTML = `<span>✅ Loaded: <strong>${file.name}</strong></span>`;
+                    setSource('file', file.name);
+                    if (!isPlaying) togglePlay();
+                }, function(err) {
+                    alert('Error decoding audio file. Please try a standard 16-bit WAV file.');
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // --- Hardware Parameter UI Listeners ---
+        sliderDepth.addEventListener('input', (e) => {
+            bitDepthSel = parseInt(e.target.value);
+            valDepth.textContent = `${bitDepthSel} bits`;
+            
+            const remainingBits = 16 - bitDepthSel;
+            const mask = ((0xFFFF << bitDepthSel) & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+            const binMask = ((0xFFFF << bitDepthSel) & 0xFFFF).toString(2).padStart(16, '0');
+            maskDetails.textContent = `Mask: ${binMask} (0x${mask}) | Effective: ${remainingBits}-bit resolution`;
+            updatePipelineStatus();
+        });
+
+        sliderDownsample.addEventListener('input', (e) => {
+            holdCount = parseInt(e.target.value);
+            const rate = Math.round(44100 / holdCount);
+            valDownsample.textContent = `${holdCount}x (${(rate/1000).toFixed(1)} kHz)`;
+            rateDetails.textContent = `Hold duration: ${holdCount} cycles | Latch strobe every ${holdCount} clocks`;
+            updatePipelineStatus();
+        });
+
+        gainButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                gainButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                driveShift = parseInt(btn.dataset.gain);
+                const mult = Math.pow(2, driveShift);
+                if (driveShift > 0) {
+                    gainDetails.textContent = `Pre-clip Gain: ${mult}x | Comparators actively checking overflow saturation`;
+                } else {
+                    gainDetails.textContent = `Pre-clip Gain: 1x (Unity) | Normal range`;
+                }
+                updatePipelineStatus();
+            });
+        });
+
+        checkBypass.addEventListener('change', (e) => {
+            isBypassed = e.target.checked;
+            updatePipelineStatus();
+        });
+
+        function updatePipelineStatus() {
+            let active = [];
+            nodeDepth.classList.remove('active');
+            nodeRate.classList.remove('active');
+            nodeGain.classList.remove('active');
+
+            if (isBypassed) {
+                activeStagesText.textContent = 'BYPASSED';
+                return;
+            }
+
+            if (bitDepthSel > 0) {
+                active.push(`Bit-Depth (${bitDepthSel} LSBs)`);
+                nodeDepth.classList.add('active');
+            }
+            if (holdCount > 1) {
+                active.push(`Rate (${holdCount}x)`);
+                nodeRate.classList.add('active');
+            }
+            if (driveShift > 0) {
+                active.push(`Gain (${Math.pow(2, driveShift)}x + Clip)`);
+                nodeGain.classList.add('active');
+            }
+
+            activeStagesText.textContent = active.length > 0 ? active.join(' + ') : 'Passthrough (0 Crush)';
+        }
+
+        // --- ANIMATED MOVING OSCILLOSCOPE ENGINE ---
+        // Continuously animates a flowing oscilloscope trace using requestAnimationFrame
+        let animOffset = 0;
+
+        function drawOscilloscope() {
+            requestAnimationFrame(drawOscilloscope);
+
+            // Draw grid & waveform on both canvases
+            drawScope(ctxInput, canvasInput, rawScopeBuffer, '#39d353', 'Channel 1: Clean Audio');
+            drawScope(ctxOutput, canvasOutput, crushedScopeBuffer, '#f0883e', 'Channel 2: Crushed Audio');
+
+            if (isPlaying) {
+                animOffset = (animOffset + 2) % SCOPE_SIZE;
+            }
+        }
+
+        function drawScope(ctx, canvas, buffer, traceColor, title) {
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerY = height / 2;
+
+            // Clear screen
+            ctx.fillStyle = '#080a0e';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw Oscilloscope Reticle Grid
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#18202c';
+            ctx.beginPath();
+            // Vertical divisions
+            for (let x = 0; x <= width; x += 40) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+            }
+            // Horizontal divisions
+            for (let y = 0; y <= height; y += 30) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+            }
+            ctx.stroke();
+
+            // Draw Center Reference Axis
+            ctx.strokeStyle = '#273448';
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(width, centerY);
+            ctx.stroke();
+
+            // Trace Waveform Line
+            ctx.lineWidth = 2.2;
+            ctx.strokeStyle = traceColor;
+            ctx.shadowColor = traceColor;
+            ctx.shadowBlur = isPlaying ? 8 : 0;
+
+            ctx.beginPath();
+            const sliceWidth = width / SCOPE_SIZE;
+            let x = 0;
+
+            for (let i = 0; i < SCOPE_SIZE; i++) {
+                // Read circularly around the buffer for animated rolling flow
+                const readIndex = (i + bufferWriteHead) % SCOPE_SIZE;
+                const v = buffer[readIndex];
+                // Scale sample [-1.0, +1.0] to canvas height with padding
+                const y = centerY - (v * (height / 2 - 14));
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+            ctx.shadowBlur = 0; // reset glow
+        }
+
+        // Start animation loop immediately
+        drawOscilloscope();
+    </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+# Simulation and build artifacts
+sim.out
+*.vcd
+crushed_samples.txt
+bitcrusher_demo.wav
+
+# OS and IDE files
+.DS_Store
+.qodo/
+.vscode/
