@@ -8,3 +8,10 @@ bitcrusher_demo.wav
 .DS_Store
 .qodo/
 .vscode/
+
+# Verification artifacts
+/tests/*.out
+__pycache__/
+
+# Temporary report authoring and render checks
+/docs/report_work/

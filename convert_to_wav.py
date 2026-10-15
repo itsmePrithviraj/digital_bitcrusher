@@ -12,16 +12,18 @@ Run after simulating:
 
 import wave
 import struct
+from pathlib import Path
 
-IN_FILE  = "crushed_samples.txt"
-OUT_FILE = "bitcrusher_demo.wav"
-SAMPLE_RATE = 8000   # arbitrary demo playback rate (samples/sec)
+ROOT = Path(__file__).resolve().parent
+IN_FILE = ROOT / "crushed_samples.txt"
+OUT_FILE = ROOT / "bitcrusher_demo.wav"
+SAMPLE_RATE = 32768  # Five 1-second cases; 256 samples/cycle -> 128 Hz tone.
 
 def main():
     with open(IN_FILE) as f:
         samples = [int(line.strip()) for line in f if line.strip()]
 
-    with wave.open(OUT_FILE, "w") as wf:
+    with wave.open(str(OUT_FILE), "wb") as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)          # 16-bit PCM
         wf.setframerate(SAMPLE_RATE)

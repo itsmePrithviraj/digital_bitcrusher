@@ -15,12 +15,13 @@ Run this once before simulating:
 """
 
 import math
+from pathlib import Path
 
 DEPTH = 256                        # samples per cycle (ROM address width = 8 bits)
 WIDTH = 16                         # bits per sample (signed two's complement)
 AMPLITUDE = (1 << (WIDTH - 1)) - 1  # 32767 -> use full positive range, headroom for negative min
 
-OUT_FILE = "sine_rom.mem"
+OUT_FILE = Path(__file__).resolve().parent / "sine_rom.mem"
 
 def main():
     with open(OUT_FILE, "w") as f:

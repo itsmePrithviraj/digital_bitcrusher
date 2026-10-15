@@ -5,10 +5,11 @@
 # Usage: ./run_sim.sh
 # ============================================================
 
-set -e
+set -eu
+cd "$(dirname "$0")"
 
 echo "=== Step 1: Compiling RTL & Testbench with Icarus Verilog ==="
-iverilog -g2012 -o sim.out \
+iverilog -g2012 -Wall -s bitcrusher_tb -o sim.out \
   rtl/audio_source.v \
   rtl/bit_depth_reducer.v \
   rtl/sample_rate_reducer.v \

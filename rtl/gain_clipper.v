@@ -1,53 +1,24 @@
-// ============================================================
-// Module: gain_clipper
-// Team Member: Person 4
-// Digital Concepts: ARITHMETIC BARREL SHIFTER + SIGNED COMPARATORS
-// ============================================================
-// Stage 1: Gain / Drive (Multiplier-less amplification)
-//   - Sign-extends 16-bit input to 19 bits to prevent immediate overflow.
-//   - Uses arithmetic left shift (<<< drive_shift) to multiply by
-//     power-of-2: 0->x1, 1->x2, 2->x4, 3->x8.
-//
-// Stage 2: Output Clipper (Saturation Logic)
-//   - Two signed magnitude comparators check if the amplified sample
-//     exceeds 16-bit signed range [-32768, +32767].
-//   - If sample > +32767: Clamp to +32767 (Flat ceiling)
-//   - If sample < -32768: Clamp to -32768 (Flat floor)
-//   - Otherwise: Pass through lower 16 bits.
-//
-// Why this matters:
-//   Prevents catastrophic two's complement wrap-around (where a large
-//   positive number wraps around into a loud negative glitch).
-// ============================================================
+`timescale 1ns/1ps
 
-module gain_clipper #(
-    parameter DATA_WIDTH = 16,
-    parameter EXT_WIDTH  = DATA_WIDTH + 3   // 19 bits headroom for up to x8 gain
-)(
-    input  wire signed [DATA_WIDTH-1:0] sample_in,
-    input  wire [1:0]                   drive_shift,  // 0-3: 1x, 2x, 4x, 8x gain
-    output reg  signed [DATA_WIDTH-1:0] sample_out
+// Member 4: multiply by 1, 2, 4 or 8, then limit to the signed 16-bit range.
+module gain_clipper (
+    input wire signed [15:0] sample_in,
+    input wire [1:0] drive_shift,
+    output reg signed [15:0] sample_out
 );
+    wire signed [18:0] extended_sample;
+    wire signed [18:0] amplified_sample;
 
-    // Maximum and minimum representable values in 16-bit signed format
-    localparam signed [EXT_WIDTH-1:0] MAX_POS =  (1 <<< (DATA_WIDTH - 1)) - 1; // +32767
-    localparam signed [EXT_WIDTH-1:0] MIN_NEG = -(1 <<< (DATA_WIDTH - 1));     // -32768
+    // Copy the sign bit into three extra bits BEFORE shifting.
+    assign extended_sample = {{3{sample_in[15]}}, sample_in};
+    assign amplified_sample = extended_sample <<< drive_shift;
 
-    // Sign extension + arithmetic left shift
-    wire signed [EXT_WIDTH-1:0] extended_sample;
-    wire signed [EXT_WIDTH-1:0] driven_sample;
-
-    assign extended_sample = {{(EXT_WIDTH - DATA_WIDTH){sample_in[DATA_WIDTH-1]}}, sample_in};
-    assign driven_sample   = extended_sample <<< drive_shift;
-
-    // Signed Magnitude Comparators + Multiplexer
     always @(*) begin
-        if (driven_sample > MAX_POS)
-            sample_out = MAX_POS[DATA_WIDTH-1:0];      // Hard clip positive ceiling
-        else if (driven_sample < MIN_NEG)
-            sample_out = MIN_NEG[DATA_WIDTH-1:0];      // Hard clip negative floor
+        if (amplified_sample > 19'sd32767)
+            sample_out = 16'sh7FFF;
+        else if (amplified_sample < -19'sd32768)
+            sample_out = 16'sh8000;
         else
-            sample_out = driven_sample[DATA_WIDTH-1:0];// Normal range pass-through
+            sample_out = amplified_sample[15:0];
     end
-
 endmodule

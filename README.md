@@ -1,98 +1,96 @@
-# 🎛️ Digital Audio Bit Crusher — RTL Implementation & Interactive Demo
+# Digital Audio Bitcrusher — Verilog Mini-Project
 
-A digital audio **Bit Crusher** processing unit implemented in synthesizable Verilog HDL, designed for a 5-member team for **Digital Systems & Computer Organization (Semester 3)**.
+A simulation project for five members: change a stored digital waveform using
+bit masking, a counter/register, and shift-and-clip logic. The aim is to explain
+basic digital circuits through a visible audio effect.
 
-Includes:
-1. **Synthesizable Verilog RTL** demonstrating core digital system concepts.
-2. **Simulation Testbench** verified with Icarus Verilog (`iverilog`) and viewable in VS Code **WaveTrace**.
-3. **Live Animated Web Audio Demo** (`viz/index.html`): Real-time interactive oscilloscope with audio playback, presets (synth, drums, sine), and custom `.wav` upload.
+**Scope:** fixed 16-bit signed samples, one 256-entry sine ROM, three controls,
+five demonstration cases. No physical hardware is needed for this submission.
 
----
-
-## 🧠 What is a Bit Crusher?
-
-A Bit Crusher intentionally degrades digital audio to create an iconic retro, 8-bit, chiptune sound effect:
-1. **Bit-Depth Reduction (Staircase Effect)**: Zeroes out least significant bits (LSBs) using a **Decoder + AND Gates**, collapsing continuous volume into coarse steps.
-2. **Sample-Rate Reduction (Stepped Effect)**: Downsamples by holding audio samples over multiple clock periods using a **Modulo-N Counter + D Register**, lowering the Nyquist frequency.
-3. **Gain & Saturation (Hard Clipping)**: Amplifies samples using an **Arithmetic Barrel Shifter** ($1\times, 2\times, 4\times, 8\times$), clamped by **Signed Comparators** to prevent two's complement wrap-around overflow.
-
----
-
-## 🏛️ Architecture & 5-Member Team Allocation
-
-```
-[audio_source] ──► [bit_depth_reducer] ──► [sample_rate_reducer] ──► [gain_clipper] ──► crushed_out
-   (Stage 0/1)           (Stage 2)                 (Stage 3)              (Stage 4/5)
+```text
+ROM + counter -> bit mask -> sample-hold register -> gain + clipping -> output
+   Member 1     Member 2          Member 3              Member 4
+                     Member 5: connect and simulate
 ```
 
-| Member | File Owned | Core Digital Concepts | Role & Responsibility |
-| :--- | :--- | :--- | :--- |
-| **Person 1** | [`rtl/audio_source.v`](file:///Users/prithvirajgokule/MIT-Btech/SEM-3/Digital%20Systems/digital_bitcrusher/rtl/audio_source.v) | **Binary Up-Counter + Synchronous ROM** | Replaces external ADC; generates test sine wave from pre-computed memory lookup table. |
-| **Person 2** | [`rtl/bit_depth_reducer.v`](file:///Users/prithvirajgokule/MIT-Btech/SEM-3/Digital%20Systems/digital_bitcrusher/rtl/bit_depth_reducer.v) | **Combinational Decoder + 16-bit AND Masking** | Translates 4-bit `bit_depth_sel` into a bitmask to zero out LSBs (amplitude quantization). |
-| **Person 3** | [`rtl/sample_rate_reducer.v`](file:///Users/prithvirajgokule/MIT-Btech/SEM-3/Digital%20Systems/digital_bitcrusher/rtl/sample_rate_reducer.v) | **Modulo-N Counter + Clock-Enabled D-FF** | Emits enable pulse every $N$ cycles; holds sample across clocks (implicit 2-state Moore FSM). |
-| **Person 4** | [`rtl/gain_clipper.v`](file:///Users/prithvirajgokule/MIT-Btech/SEM-3/Digital%20Systems/digital_bitcrusher/rtl/gain_clipper.v) | **Barrel Shifter + Signed Comparators** | Multiplier-less power-of-2 gain (`<<< drive_shift`) with saturation limits $[-32768, +32767]$. |
-| **Person 5** | [`rtl/bitcrusher_top.v`](file:///Users/prithvirajgokule/MIT-Btech/SEM-3/Digital%20Systems/digital_bitcrusher/rtl/bitcrusher_top.v), [`tb/bitcrusher_tb.v`](file:///Users/prithvirajgokule/MIT-Btech/SEM-3/Digital%20Systems/digital_bitcrusher/tb/bitcrusher_tb.v) | **Structural Datapath + Verification** | Wires all modules; runs 5-stage simulation sweep; generates `bitcrusher.vcd` for WaveTrace. |
+## Run it
 
----
+Requires Icarus Verilog (`iverilog` and `vvp`); Python 3 is needed for automated
+checks and optional WAV conversion. These tools were available during testing.
 
-## 📁 Repository Structure
-
-```
-digital_bitcrusher/
-├── rtl/                          ← Synthesizable Verilog Source Files
-│   ├── audio_source.v            ← Person 1: ROM + Counter
-│   ├── bit_depth_reducer.v       ← Person 2: Decoder + AND mask
-│   ├── sample_rate_reducer.v     ← Person 3: Modulo-N + D-FF register
-│   ├── gain_clipper.v            ← Person 4: Shifter + Comparators
-│   └── bitcrusher_top.v          ← Person 5: Top datapath
-├── tb/
-│   ├── bitcrusher_tb.v           ← Testbench (5 config sweeps)
-│   └── sine_rom.mem              ← 256-word 16-bit sine table
-├── audio/                        ← Test Audio Samples
-│   ├── synth_lead.wav            ← 80s arpeggiated synth lead
-│   └── sine_tone.wav             ← Pure 440 Hz reference sine wave
-├── viz/
-│   └── index.html                ← Live animated oscilloscope web demo
-├── run_sim.sh                    ← Automated compile & run script
-├── convert_to_wav.py             ← Converts simulation output to .wav
-└── README.md
-```
-
----
-
-## ⚡ Quick Start
-
-### 1. Run Verilog Simulation (Terminal)
-Requires `iverilog` installed on macOS (`brew install icarus-verilog`):
 ```bash
-./run_sim.sh
+./run_sim.sh                 # Produce waveform and sample values
+./run_tests.sh               # Check blocks, rerun demo, check every output sample
+python3 convert_to_wav.py    # Optional: hear five 1-second cases
 ```
-Outputs generated:
-* `bitcrusher.vcd` — Waveform dump for VS Code **WaveTrace**.
-* `crushed_samples.txt` — Raw PCM sample values.
 
-### 2. Inspect Waveforms in VS Code (WaveTrace)
-1. In VS Code Explorer, click on `bitcrusher.vcd`.
-2. Add the following probes to the timeline view:
-   * `dut.raw_sample_dbg` (Original smooth sine wave)
-   * `dut.quantized_sample_dbg` (Staircase bit-crushed wave)
-   * `dut.held_sample_dbg` (Stepped time-domain downsampled wave)
-   * `dut.crushed_out` (Final output with flat-top saturation clipping)
+Open `bitcrusher.vcd` in a VCD waveform viewer. Under `bitcrusher_tb.dut`, add
+`raw_sample_dbg`, `quantized_sample_dbg`, `held_sample_dbg`, `crushed_out`, and
+`sample_en_dbg`. Display the sample buses as **signed decimal/analog** and zoom
+into a few waveform periods. Each case has 32768 clocks, with reset between cases.
 
-### 3. Open the Interactive Live Audio Web Demo
-Simply double-click or open [`viz/index.html`](file:///Users/prithvirajgokule/MIT-Btech/SEM-3/Digital%20Systems/digital_bitcrusher/viz/index.html) in Chrome or Safari:
-* Click **"Start Audio & Oscilloscope"** to hear live sound and watch the oscilloscope wave move!
-* Switch between **Sine 440Hz**, **80s Synth Lead**, and **Drum Beat**, or **drag-and-drop any .wav file** from your Mac.
-* Adjust the **Crush Depth** and **Downsample Factor** sliders to hear the audio degrade in real time and see the moving waves transform into staircase and blocky steps!
+| Case | Bits removed | Hold N | Gain | What to show |
+| --- | ---: | ---: | ---: | --- |
+| Clean | 0 | 1 | 1× | Same sample values, with register latency |
+| Bit reduction | 12 | 1 | 1× | Coarse amplitude steps, 4 effective bits |
+| Sample holding | 0 | 16 | 1× | One value kept for 16 clocks |
+| Clipping | 0 | 1 | 4× | Flat peaks at the signed limits |
+| Combined | 12 | 16 | 2× | All three effects together |
 
----
+The WAV uses 32768 samples/second, so the 256-sample ROM produces a 128 Hz tone.
+The testbench's 20 ns clock only makes the simulation run in convenient units;
+it does not represent the WAV playback rate. Start playback at low volume.
 
-## 🎵 Why are there numbers in `crushed_samples.txt`?
-Digital audio in computers and CDs is stored as a sequence of **PCM numbers**. In standard 16-bit audio, each number is an integer between **$-32768$** and **$+32767$**.
-Our Verilog testbench logs each processed sample to `crushed_samples.txt`. 
+![Actual simulation output for the five cases](docs/waveform_comparison.png)
 
-To turn those numbers into a playable `.wav` file:
-```bash
-python3 convert_to_wav.py
-```
-This produces `bitcrusher_demo.wav`.
+## Browser presentation demo
+
+Open `viz/index.html` in your browser (on macOS: `open viz/index.html`). Click
+**Start Audio & Oscilloscope** to hear the signal and see the input/output waves.
+Use the sine source first, then demonstrate these settings one at a time:
+
+1. Clean: bits removed 0, hold 1, gain 1×.
+2. Bit reduction: bits removed 12, hold 1, gain 1×.
+3. Sample holding: bits removed 0, hold 16, gain 1×.
+4. Clipping: bits removed 0, hold 1, gain 4×.
+5. Combined: bits removed 12, hold 16, gain 2×.
+
+The synth, drum, and WAV-upload features are also preserved. The browser is the
+interactive presentation aid; it runs a JavaScript model of the effect. Use
+Verilog waveforms and tests to demonstrate circuit correctness. To hear the
+actual Verilog output, play `bitcrusher_demo.wav` after running the conversion.
+
+## What each member owns
+
+| Member | File | Responsibility and viva topic |
+| --- | --- | --- |
+| 1 | `rtl/audio_source.v` | ROM, address counter, reset, wraparound; explain the sine table |
+| 2 | `rtl/bit_depth_reducer.v` | AND mask, LSBs, two's complement; work positive/negative examples |
+| 3 | `rtl/sample_rate_reducer.v` | Counter, register, clock enable; draw an N=4 timing table |
+| 4 | `rtl/gain_clipper.v` | Shifts, sign extension, overflow, signed comparisons |
+| 5 | `rtl/bitcrusher_top.v`, `tb/bitcrusher_tb.v` | Connections, testbench timing, waveform demonstration |
+
+Member 2 has the shortest code, so also owns the block diagram and quantization
+examples. Everyone should understand the whole signal path and test their own
+block; the split is by responsibility, not equal line counts.
+
+## Files to study
+
+- `rtl/`: five short design modules, all with fixed widths.
+- `tb/bitcrusher_tb.v`: the presentation testbench.
+- `sine_rom.mem`: the one shared ROM table; `gen_sine_table.py` regenerates it.
+- [Study and viva guide](docs/STUDY_GUIDE.md): concepts, examples, questions, demo script.
+- [Scope review](docs/SCOPE_REVIEW.md): what was kept, simplified, and corrected.
+- `tests/`: extra automated checks; not another project feature to present.
+- `viz/index.html`: browser demo for live audio and waveform presentation.
+- `audio/`, `generate_sample_audio.py`: example audio and its generator.
+- `Report_Word_Template.docx`: existing user-provided template, left untouched.
+
+## Limits to state honestly
+
+This is a simulated digital datapath, not a microphone-to-speaker system. It
+uses a ROM instead of an ADC and does not implement a DAC, audio codec, FPGA
+board interface, filters, FFT, or a processor. Sample holding deliberately
+introduces distortion; it is not a high-quality sample-rate converter. The RTL
+has not been synthesized or tested on a board; ROM initialization support
+would depend on the target tools.
